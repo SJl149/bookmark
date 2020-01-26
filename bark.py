@@ -10,7 +10,8 @@ class Option:
 
     def choose(self):
         data = self.prep_call() if self.prep_call else None
-        message = self.command.execute(data) if data else self.command.execute()
+        # message = self.command.execute(data) if data else self.command.execute()
+        message = self.command.execute(data)
         print(message)
 
     def __str__(self):
