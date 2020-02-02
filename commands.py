@@ -1,33 +1,22 @@
-from database import DatabaseManager
+from persistence import BookmarkDatabase
 from datetime import datetime
 from abc import ABC, abstractmethod
 import sys
 import requests
 
-db = DatabaseManager('bookmarks.db')
+persistence = BookmarkDatabase()
 
 
 class Command(ABC):
     @abstractmethod
     def execute(self, data):
-        pass
-
-
-class CreateBookmarksTableCommand(Command):
-    def execute(self, data=None):
-        db.create_table('bookmarks', {
-            'id': 'integer primary key autoincrement',
-            'title': 'text not null',
-            'url': 'text not null',
-            'notes': 'text',
-            'date_added': 'text not null',
-        })
+        raise NotImplementedError('Commands must implement execute method!')
 
 
 class AddBookmarkCommand(Command):
     def execute(self, data, timestamp=None):
         data['date_added'] = timestamp or datetime.utcnow().isoformat()
-        db.add('bookmarks', data)
+        persistence.create(data)
         return True, None
 
 
@@ -36,12 +25,18 @@ class ListBookmarksCommand(Command):
         self.order_by = order_by
 
     def execute(self, data=None):
-        return True, db.select('bookmarks', order_by=self.order_by).fetchall()
+        return True, persistence.list(order_by=self.order_by)
+
+
+class EditBookmarkCommand(Command):
+    def execute(self, data):
+        persistence.edit(data['id'], data['update'])
+        return True, None
 
 
 class DeleteBookmarkCommand(Command):
     def execute(self, data):
-        db.delete('bookmarks', {'id': data})
+        persistence.delete(data)
         return True, None
 
 
