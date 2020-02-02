@@ -2,17 +2,30 @@ import commands
 import os
 
 
+def format_bookmark(bookmark):
+    return '\t'.join(str(field) if field else '' for field in bookmark)
+
+
 class Option:
-    def __init__(self, name, command, prep_call=None):
+    def __init__(self, name, command, prep_call=None, success_message='{result}'):
         self.name = name
         self.command = command
         self.prep_call = prep_call
+        self.success_message = success_message
 
     def choose(self):
         data = self.prep_call() if self.prep_call else None
-        # message = self.command.execute(data) if data else self.command.execute()
-        message = self.command.execute(data)
-        print(message)
+        success, result = self.command.execute(data)
+        formatted_result = ''
+
+        if isinstance(result, list):
+            for bookmark in result:
+                formatted_result += '\n' + format_bookmark(bookmark)
+        else:
+            formatted_result = result
+
+        if success:
+            print(self.success_message.format(result=formatted_result))
 
     def __str__(self):
         return self.name
@@ -26,7 +39,7 @@ def clear_screen():
 def print_options(options):
     for shortcut, option in options.items():
         print(f'({shortcut}) {option}')
-        print()
+    print()
 
 
 def option_choice_is_valid(choice, options):
@@ -52,7 +65,7 @@ def get_new_bookmark_data():
     return {
         'title': get_user_input('Title'),
         'url': get_user_input('URL'),
-        'notes': get_user_input('NOTES', required=False),
+        'notes': get_user_input('Notes', required=False),
     }
 
 
@@ -67,14 +80,54 @@ def get_github_import_options():
     }
 
 
+def get_new_bookmark_info():
+    bookmark_id = get_user_input('Enter a bookmark ID to edit')
+    field = get_user_input('Choose a value to edit (title, URL, notes)')
+    new_value = get_user_input(f'Enter the new value for {field}')
+    return {
+        'id': bookmark_id,
+        'update': {field: new_value},
+    }
+
+
 def loop():
     options = {
-        'A': Option('Add a bookmark', commands.AddBookmarkCommand(), prep_call=get_new_bookmark_data),
-        'B': Option('List bookmarks by date', commands.ListBookmarksCommand()),
-        'T': Option('List bookmarks by title', commands.ListBookmarksCommand(order_by='title')),
-        'D': Option('Delete a bookmark', commands.DeleteBookmarkCommand(), prep_call=get_bookmark_id_for_deletion),
-        'Q': Option('Quit', commands.QuitCommand()),
-        'G': Option('Import GitHub stars', commands.ImportGitHubStarsCommand(), prep_call=get_github_import_options),
+        'A': Option(
+            'Add a bookmark',
+            commands.AddBookmarkCommand(),
+            prep_call=get_new_bookmark_data,
+            success_message='Bookmark added!'
+        ),
+        'B': Option(
+            'List bookmarks by date',
+            commands.ListBookmarksCommand()
+        ),
+        'T': Option(
+            'List bookmarks by title',
+            commands.ListBookmarksCommand(order_by='title')
+        ),
+        'E': Option(
+            'Edit a bookmark',
+            commands.EditBookmarkCommand(),
+            prep_call=get_new_bookmark_info,
+            success_message='Bookmark updated!'
+        ),
+        'D': Option(
+            'Delete a bookmark',
+            commands.DeleteBookmarkCommand(),
+            prep_call=get_bookmark_id_for_deletion,
+            success_message='Bookmark deleted!'
+        ),
+        'G': Option(
+            'Import GitHub stars',
+            commands.ImportGitHubStarsCommand(),
+            prep_call=get_github_import_options,
+            success_message='Imported {result} bookmarks from starred repos!'
+        ),
+        'Q': Option(
+            'Quit',
+            commands.QuitCommand()
+        )
     }
 
     clear_screen()
@@ -86,6 +139,5 @@ def loop():
 
 
 if __name__ == '__main__':
-    commands.CreateBookmarksTableCommand().execute()
     while True:
         loop()
